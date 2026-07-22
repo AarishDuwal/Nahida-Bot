@@ -188,4 +188,12 @@ client.once("ready", () => {
   console.log(`${config.botName} is online as ${client.user.tag}`);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// --- Temporary debug info (safe: does not print the actual token) ----------
+const rawToken = process.env.DISCORD_TOKEN || "";
+console.log(`[debug] DISCORD_TOKEN present: ${rawToken.length > 0}`);
+console.log(`[debug] DISCORD_TOKEN length: ${rawToken.length}`);
+console.log(`[debug] DISCORD_TOKEN dot segments: ${rawToken.split(".").length}`);
+// A real bot token has 3 dot-separated segments and is typically 59-72+ characters.
+// If length is short (like 19) or dot segments = 1, the wrong value is set.
+
+client.login(rawToken);
