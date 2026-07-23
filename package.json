@@ -4,6 +4,9 @@
   "description": "Ei - a personal Discord bot that replies to natural messages, no slash commands or prefix needed",
   "main": "index.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"

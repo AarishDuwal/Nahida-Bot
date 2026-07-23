@@ -62,4 +62,47 @@ module.exports = [
     ],
     answer: null, // handled dynamically in index.js using config.ownerName
   },
+  {
+    id: "who-is-luza",
+    triggers: [
+      "who is luza",
+      "whos luza",
+      "who's luza",
+      "who is luzaa",
+      "who is luzza",
+      "who is luzzaa",
+    ],
+    answer:
+      "Luza is the legend who loves riplik a lot. That's the whole lore. 😄",
+  },
+  {
+    id: "who-is-Aschin",
+    triggers: [
+      "who is Aschin",
+      "whos Aschin",
+      "who's Aschin",
+    ],
+    answer:
+      "Aschin is a talented individual who contributes significantly to the community. Great to have him on board! 🙌",
+  },
+  {
+    id: "who-is-swapnil",
+    triggers: [
+      "who is swapnil",
+      "whos swapnil",
+      "who's swapnil",
+    ],
+    answer:
+      "Swapnil is a great person to work with — always bringing energy and dedication to everything he does. Respect! 🙌" ,
+  },
+  {
+    id: "is riplik gay",
+    triggers: [
+      "is riplik gay",
+      "riplik gay",
+      "is riplek gay",
+      "is riplik gey",
+    ],
+    answer: "No but he is a great black ass nigger and he loves luza a lot 😄",
+  },
 ];

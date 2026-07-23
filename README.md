@@ -8,8 +8,9 @@ ei-bot/
 ├── index.js        # main bot logic (message listening, matching, replies)
 ├── config.js        # bot name, owner name, tuning values
 ├── responses.js      # your custom Q&A pairs
+├── ai.js           # Groq API integration (free) for open-ended replies + per-channel memory
 ├── package.json
-├── .env            # your bot token (keep private, never commit)
+├── .env            # your bot token + API key (keep private, never commit)
 └── .gitignore
 ```
 
@@ -33,11 +34,13 @@ ei-bot/
    ```
 
 4. **Add your token**
-   Open `.env` and paste your real token:
+   Open `.env` and paste your real credentials:
    ```
-   DISCORD_TOKEN=your_real_token_here
+   DISCORD_TOKEN=your_real_discord_token_here
    OWNER_NAME=Aarish
+   GROQ_API_KEY=your_real_groq_api_key_here
    ```
+   Get a free Groq API key at [console.groq.com](https://console.groq.com) → sign up (no credit card required) → **API Keys** → **Create API Key**.
 
 5. **Run it**
    ```bash
@@ -50,6 +53,18 @@ ei-bot/
 - **In DMs**: replies to everything.
 - **In server channels**: replies when you `@mention` it, or when your message contains the word "ei" (so you don't need a prefix — just say its name naturally, e.g. "ei what time is it").
 - **Typo tolerance**: uses fuzzy string matching (Levenshtein distance) so small spelling mistakes in questions still match — e.g. "does riplek love luza" still triggers the right answer.
+- **Reply priority**: custom Q&A (`responses.js`) → built-in smalltalk (time/date/etc.) → real AI-generated reply via Claude, in that order. The first one that matches wins.
+
+## About the AI fallback (ai.js)
+
+When nothing in `responses.js` or the built-in smalltalk matches, Ei calls the Groq API to generate a real, open-ended reply.
+
+- **Free.** Groq has a genuine free tier — no credit card required, no trial expiration like some other providers.
+- **Not permanent learning.** It doesn't train on your messages or get smarter over time. Each reply is generated fresh by the model based on the conversation so far.
+- **Short-term memory only.** Ei keeps the last ~12 messages per channel in memory so replies feel like part of an ongoing conversation. This resets whenever the bot restarts or redeploys (e.g. after a `git push` to Railway) — nothing is saved permanently.
+- **Model used:** `llama-3.3-70b-versatile` by default — good quality, plays well with Groq's free-tier limits. You can swap this for `llama-3.1-8b-instant` in `ai.js` if you want faster/cheaper-on-limits responses, or another supported Groq model.
+- **Rate limits:** free tier has request/token limits per minute — check current limits at [console.groq.com](https://console.groq.com) if the bot starts erroring under heavy use.
+- **Personality:** controlled by the `SYSTEM_PROMPT` in `ai.js` — edit that to change Ei's tone, add more personality quirks, or add ground rules.
 
 ## Editing custom answers
 
