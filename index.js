@@ -6,6 +6,7 @@ require("dotenv").config();
 const { Client, GatewayIntentBits, Partials } = require("discord.js");
 const config = require("./config");
 const qaPairs = require("./responses");
+const { generateReply } = require("./ai");
 
 const client = new Client({
   intents: [
@@ -122,7 +123,10 @@ function tryBuiltInAnswer(content) {
     return `I'm ${config.botName}, your friendly neighborhood bot 🤖`;
   }
 
-  if (/\b(hi|hello|hey|yo) ei\b|^ei[,! ]|^hey ei/.test(msg)) {
+  // Only treat as a plain greeting if the ENTIRE message is just a greeting —
+  // otherwise "ei what's a good weekend plan" would incorrectly match here
+  // just because it starts with "ei ".
+  if (/^(hi|hello|hey|yo)?\s*ei[,! ]*$|^(hi|hello|hey|yo)$/.test(msg)) {
     return "Hey! 👋 What's up?";
   }
 
@@ -173,11 +177,18 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // 3. Fallback generic reply so the bot always feels responsive
-    if (isDM || isMentioned) {
-      await message.reply(
-        "I heard you! I don't have a specific answer for that yet, but you can ask me things like \"what time is it\" or the group's inside jokes 😄"
-      );
+    // 3. Fallback: ask Claude for a real, context-aware reply
+    if (isDM || isMentioned || saysNameEi) {
+      try {
+        await message.channel.sendTyping();
+        const aiReply = await generateReply(message.channel.id, cleaned);
+        await message.reply(aiReply);
+      } catch (aiErr) {
+        console.error("AI reply failed:", aiErr);
+        await message.reply(
+          "I glitched out trying to think of an answer 😅 try asking again in a sec."
+        );
+      }
     }
   } catch (err) {
     console.error("Error handling message:", err);
@@ -188,12 +199,4 @@ client.once("ready", () => {
   console.log(`${config.botName} is online as ${client.user.tag}`);
 });
 
-// --- Temporary debug info (safe: does not print the actual token) ----------
-const rawToken = process.env.DISCORD_TOKEN || "";
-console.log(`[debug] DISCORD_TOKEN present: ${rawToken.length > 0}`);
-console.log(`[debug] DISCORD_TOKEN length: ${rawToken.length}`);
-console.log(`[debug] DISCORD_TOKEN dot segments: ${rawToken.split(".").length}`);
-// A real bot token has 3 dot-separated segments and is typically 59-72+ characters.
-// If length is short (like 19) or dot segments = 1, the wrong value is set.
-
-client.login(rawToken);
+client.login(process.env.DISCORD_TOKEN);
