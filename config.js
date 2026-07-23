@@ -1,6 +1,6 @@
 module.exports = {
   botName: "Ei",
-  ownerName: process.env.OWNER_NAME || "Aarish",
+  ownerName: process.env.OWNER_NAME || "Arvel",
   // How "close" a message needs to be to a known question to trigger (0-1, higher = stricter)
   matchThreshold: 0.6,
   // Cooldown (ms) so the bot doesn't spam-reply to rapid messages from same user
