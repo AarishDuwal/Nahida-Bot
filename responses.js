@@ -16,7 +16,7 @@ module.exports = [
       "who is ur owner",
     ],
     answer: null, // handled dynamically in index.js using config.ownerName
-  }
+  },
   {
     id: "who-is-rui?",
     triggers: [
