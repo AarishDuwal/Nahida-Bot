@@ -8,6 +8,7 @@
 
 const config = require("./config");
 const { searchToramWiki, isToramRelated } = require("./toramWiki");
+const { searchCorynClub } = require("./corynClub");
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile"; // good quality, free tier friendly
@@ -61,19 +62,32 @@ async function generateReply(channelId, userMessage) {
   const messages = [{ role: "system", content: SYSTEM_PROMPT }];
 
   // If the question looks Toram Online-related, ground the answer with
-  // real info from the wiki instead of letting the model guess/hallucinate.
+  // real data instead of letting the model guess/hallucinate.
   if (isToramRelated(userMessage)) {
-    const wikiResult = await searchToramWiki(userMessage);
+    const [corynData, wikiResult] = await Promise.all([
+      searchCorynClub(userMessage),
+      searchToramWiki(userMessage),
+    ]);
+
+    if (corynData) {
+      messages.push({
+        role: "system",
+        content: `Real Toram Online game data from Coryn Club's database (items/monsters/maps):\n${corynData}`,
+      });
+    }
+
     if (wikiResult) {
       messages.push({
         role: "system",
         content: `Reference info from the Toram Online wiki (page: "${wikiResult.title}"):\n"""${wikiResult.extract}"""`,
       });
-    } else {
+    }
+
+    if (!corynData && !wikiResult) {
       messages.push({
         role: "system",
         content:
-          "No matching Toram Online wiki page was found for this question. If you're not confident about specific game details (numbers, mechanics, item stats), say so honestly instead of guessing.",
+          "No matching Coryn Club data or wiki page was found for this question. If you're not confident about specific game details (numbers, mechanics, item stats), say so honestly instead of guessing.",
       });
     }
   }
