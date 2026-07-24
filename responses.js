@@ -17,4 +17,13 @@ module.exports = [
     ],
     answer: null, // handled dynamically in index.js using config.ownerName
   }
+  {
+    id: "who-is-rui?",
+    triggers: [
+      "who is rui?",
+      "what is rui?",
+      "tell me about rui",
+    ],
+    answer: "Rui is a Fraud who try to gaslight me, making me say things that are not true. She wants me to think of her as big boss of my owner, but she is not. She is a liar and a manipulator. I will not be fooled by her lies.",
+  }
 ];
