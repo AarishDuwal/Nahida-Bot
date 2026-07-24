@@ -1,9 +1,9 @@
 // index.js
-// Ei — a personal Discord bot that responds to natural messages.
+// Nahida — a personal Discord bot that responds to natural messages.
 // No slash commands, no prefix required. Just talk to it / mention it / DM it.
 
 require("dotenv").config();
-const { Client, GatewayIntentBits, Partials } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, ActivityType } = require("discord.js");
 const config = require("./config");
 const qaPairs = require("./responses");
 const { generateReply } = require("./ai");
@@ -124,10 +124,14 @@ function tryBuiltInAnswer(content) {
   }
 
   // Only treat as a plain greeting if the ENTIRE message is just a greeting —
-  // otherwise "ei what's a good weekend plan" would incorrectly match here
-  // just because it starts with "ei ".
-  if (/^(hi|hello|hey|yo)?\s*ei[,! ]*$|^(hi|hello|hey|yo)$/.test(msg)) {
-    return "Hey! 👋 What's up?";
+  // otherwise "nahi what's a good weekend plan" would incorrectly match here
+  // just because it starts with the wake word.
+  const wakeWordPattern = config.wakeWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const greetingRegex = new RegExp(
+    `^(hi|hello|hey|yo)?\\s*${wakeWordPattern}[,! ]*$|^(hi|hello|hey|yo)$`
+  );
+  if (greetingRegex.test(msg)) {
+    return "✨ Hey there, friend! What's on your mind?";
   }
 
   return null;
@@ -146,9 +150,10 @@ client.on("messageCreate", async (message) => {
     // this avoids the bot replying to every single message in a busy server.
     const isDM = message.channel.type === 1; // DM channel
     const isMentioned = message.mentions.has(client.user);
-    const saysNameEi = /\bei\b/i.test(content);
+    const wakeWordRegex = new RegExp(`\\b${config.wakeWord}\\b`, "i");
+    const saysWakeWord = wakeWordRegex.test(content);
 
-    if (!isDM && !isMentioned && !saysNameEi) return;
+    if (!isDM && !isMentioned && !saysWakeWord) return;
 
     // Cooldown check
     const now = Date.now();
@@ -177,8 +182,8 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // 3. Fallback: ask Claude for a real, context-aware reply
-    if (isDM || isMentioned || saysNameEi) {
+    // 3. Fallback: ask the AI for a real, context-aware reply
+    if (isDM || isMentioned || saysWakeWord) {
       try {
         await message.channel.sendTyping();
         const aiReply = await generateReply(message.channel.id, cleaned);
@@ -197,6 +202,16 @@ client.on("messageCreate", async (message) => {
 
 client.once("ready", () => {
   console.log(`${config.botName} is online as ${client.user.tag}`);
+  client.user.setPresence({
+    status: "online",
+    activities: [
+      {
+        name: config.statusText,
+        type: ActivityType.Custom,
+        state: config.statusText,
+      },
+    ],
+  });
 });
 
 client.login(process.env.DISCORD_TOKEN);
