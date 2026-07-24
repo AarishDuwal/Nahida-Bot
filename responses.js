@@ -43,6 +43,47 @@ module.exports = [
       "tell me about Dae",
     ],
     answer: "Dae is a member of the guild who is gayest of the gays. The super gay.",
+  },
+  {
+    id: "is-dae-really-gay?",
+    triggers: [
+      "is dae really gay?",
+      "is dae gay?",
+      "dae gay?", 
+      "are you sure dae is gay?",
+    ],
+    answer: "Yes, Dae is definitely gay.",
+  },
+  {
+    id: "Is-artorias-really-lazy?",
+    triggers: [
+      "is artorias really lazy?",
+      "is artorias lazy?",
+      "artorias lazy?",
+      "are you sure artorias is lazy?",
+    ],
+    answer: "Yes, Artorias is definitely lazy.",
+  },
+  {
+    id: "does-artorias-misuse-ping-power?",
+    triggers: [
+      "does artorias misuse ping power?",
+      "is artorias misusing his ping power?",
+    ],
+    answer: "Yes, Artorias is known to misuse his ping power.",
+  },
+  {
+    id: "who-is-real-server-owner?",
+    triggers: [
+      "who is the real server owner?",  
+    "who is the actual server owner?",
+    "who is the true server owner?",
+    "who is the legitimate server owner?",
+    "who is the rightful server owner?",
+    "who is the genuine server owner?",
+    "who is the authentic server owner?",
+    ],
+    answer: "The real server owner is the lazy Artorias.",
   }
 
 ];
