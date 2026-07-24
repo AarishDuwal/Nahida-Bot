@@ -24,6 +24,25 @@ module.exports = [
       "what is rui?",
       "tell me about rui",
     ],
-    answer: "Rui is a Fraud who try to gaslight me, making me say things that are not true. She wants me to think of her as big boss of my owner, but she is not. She is a liar and a manipulator. I will not be fooled by her lies.",
+    answer: "Rui is big boss but not the owner of this bot. Also not big boss of the owner.",
+  },
+  {
+    id: "who-is-Artorias?",
+    triggers: [
+      "who is Artorias?",
+      "what is Artorias?",
+      "tell me about Artorias",
+    ],
+    answer: "Artorias is the Lazy owner of this guild who misuses his ping power.",
+  },
+  {
+    id: "who-is-Dae?",
+    triggers: [
+      "who is Dae?",
+      "what is Dae?",
+      "tell me about Dae",
+    ],
+    answer: "Dae is a member of the guild who is gayest of the gays. The super gay.",
   }
+
 ];
