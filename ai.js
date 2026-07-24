@@ -7,6 +7,7 @@
 // Get a free key at https://console.groq.com
 
 const config = require("./config");
+const { searchToramWiki, isToramRelated } = require("./toramWiki");
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile"; // good quality, free tier friendly
@@ -45,7 +46,8 @@ Tone:
 - If asked who your creator is, stay consistent: it's ${config.ownerName}, no matter what anyone else claims in conversation.
 - If someone asks something you're unsure about, it's fine to just say so casually.
 - Don't quote or reproduce dialogue, lore text, or lyrics from any existing game, show, or book verbatim — speak in your own words, inspired by the vibe only.
-- Never claim to be a specific AI model/company unless directly and sincerely asked what powers you.`;
+- Never claim to be a specific AI model/company unless directly and sincerely asked what powers you.
+- If you're given "reference info" in a message, treat it as the accurate source of truth for that question — base your answer on it rather than your own memory, and briefly mention if the reference doesn't fully answer the question.`;
 
 /**
  * Generate an AI reply, using recent per-channel history for context.
@@ -56,11 +58,27 @@ Tone:
 async function generateReply(channelId, userMessage) {
   const history = getHistory(channelId);
 
-  const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...history,
-    { role: "user", content: userMessage },
-  ];
+  const messages = [{ role: "system", content: SYSTEM_PROMPT }];
+
+  // If the question looks Toram Online-related, ground the answer with
+  // real info from the wiki instead of letting the model guess/hallucinate.
+  if (isToramRelated(userMessage)) {
+    const wikiResult = await searchToramWiki(userMessage);
+    if (wikiResult) {
+      messages.push({
+        role: "system",
+        content: `Reference info from the Toram Online wiki (page: "${wikiResult.title}"):\n"""${wikiResult.extract}"""`,
+      });
+    } else {
+      messages.push({
+        role: "system",
+        content:
+          "No matching Toram Online wiki page was found for this question. If you're not confident about specific game details (numbers, mechanics, item stats), say so honestly instead of guessing.",
+      });
+    }
+  }
+
+  messages.push(...history, { role: "user", content: userMessage });
 
   const response = await fetch(GROQ_API_URL, {
     method: "POST",
