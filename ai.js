@@ -1,18 +1,65 @@
 // ai.js
-// Handles calls to Groq's free LLM API for open-ended replies,
-// with a short rolling memory per channel so conversations feel natural.
+// Handles calls to free LLM APIs for open-ended replies, with a short
+// rolling memory per channel so conversations feel natural.
 //
-// Groq offers a generous free tier (no credit card required) and is
-// OpenAI-compatible, so we just use plain fetch() against their endpoint.
-// Get a free key at https://console.groq.com
+// Multiple providers are tried in order (all OpenAI-compatible, so the
+// request/response shape is identical). If one is rate-limited or errors
+// out, we automatically fall through to the next one instead of failing.
+//
+// Get free keys at:
+//   Groq        -> https://console.groq.com
+//   Cerebras    -> https://cloud.cerebras.ai
+//   OpenRouter  -> https://openrouter.ai/keys
+//   Gemini      -> https://aistudio.google.com/apikey
+//
+// Any key you leave blank in .env is simply skipped (that provider is
+// removed from the chain), so you don't need all four to run the bot.
 
 const config = require("./config");
 const { searchToramWiki, isToramRelated } = require("./toramWiki");
 const { searchCorynClub } = require("./corynClub");
 
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile"; // good quality, free tier friendly
-// Alternative if you want faster/cheaper-on-limits responses: "llama-3.1-8b-instant"
+// Ordered fallback chain. Each entry is only used if its API key env var
+// is actually set. Model IDs occasionally change on the provider side —
+// if one starts erroring, check the provider's current model list and
+// update the value here (or override via the matching *_MODEL env var).
+const PROVIDERS = [
+  {
+    name: "Groq",
+    apiKey: process.env.GROQ_API_KEY,
+    url: "https://api.groq.com/openai/v1/chat/completions",
+    model: process.env.GROQ_MODEL || "llama-3.1-8b-instant", // higher free-tier limits than 70b
+  },
+  {
+    name: "Cerebras",
+    apiKey: process.env.CEREBRAS_API_KEY,
+    url: "https://api.cerebras.ai/v1/chat/completions",
+    model: process.env.CEREBRAS_MODEL || "llama3.1-8b",
+  },
+  {
+    name: "OpenRouter",
+    apiKey: process.env.OPENROUTER_API_KEY,
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
+    extraHeaders: {
+      // OpenRouter asks for these but they're optional/cosmetic
+      "HTTP-Referer": "https://github.com/",
+      "X-Title": config.botName,
+    },
+  },
+  {
+    name: "Gemini",
+    apiKey: process.env.GEMINI_API_KEY,
+    url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  },
+].filter((p) => !!p.apiKey); // drop any provider whose key isn't set
+
+if (PROVIDERS.length === 0) {
+  console.warn(
+    "[ai.js] No AI provider API keys found in .env — AI fallback replies will always fail."
+  );
+}
 
 // In-memory conversation history, per channel.
 // NOTE: this resets whenever the bot restarts/redeploys — it's short-term
@@ -99,35 +146,69 @@ async function generateReply(channelId, userMessage) {
 
   messages.push(...history, { role: "user", content: userMessage });
 
-  const response = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages,
-      max_tokens: 300,
-      temperature: 0.8,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Groq API error ${response.status}: ${errText}`);
-  }
-
-  const data = await response.json();
-  const replyText =
-    data.choices?.[0]?.message?.content?.trim() ||
-    "Hmm, I'm not sure what to say to that 😅";
+  const replyText = await callWithFallback(messages);
 
   // Save both sides to history for context in the next message
   pushHistory(channelId, "user", userMessage);
   pushHistory(channelId, "assistant", replyText);
 
   return replyText;
+}
+
+/**
+ * Try each configured provider in order until one succeeds.
+ * A 429 (rate limited) or any other non-OK response just moves on to the
+ * next provider rather than throwing immediately.
+ * @param {Array<{role: string, content: string}>} messages
+ * @returns {Promise<string>}
+ */
+async function callWithFallback(messages) {
+  const errors = [];
+
+  for (const provider of PROVIDERS) {
+    try {
+      const response = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${provider.apiKey}`,
+          ...(provider.extraHeaders || {}),
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages,
+          max_tokens: 300,
+          temperature: 0.8,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        errors.push(`${provider.name} (${response.status}): ${errText.slice(0, 200)}`);
+        // 429 = rate limited, 401/403 = bad/missing key, 5xx = provider down —
+        // in every case, just try the next provider in the chain.
+        continue;
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        errors.push(`${provider.name}: empty response`);
+        continue;
+      }
+
+      return text;
+    } catch (err) {
+      errors.push(`${provider.name}: ${err.message}`);
+      // network error etc. — try the next provider
+      continue;
+    }
+  }
+
+  // Every provider failed (or none were configured)
+  throw new Error(
+    `All AI providers failed:\n${errors.join("\n") || "no providers configured"}`
+  );
 }
 
 module.exports = { generateReply };
