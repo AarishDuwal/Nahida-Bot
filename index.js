@@ -57,7 +57,7 @@ function similarity(a, b) {
 
 // Checks whether the message contains something close enough to any trigger phrase.
 // Uses whole-string similarity AND substring containment so short trigger phrases
-// still match inside longer sentences (e.g. "yo ei does riplik love luza fr").
+// still match inside longer sentences (e.g. "yo nahi does riplik love luza fr").
 function matchesTrigger(message, trigger) {
   const normMsg = normalize(message);
   const normTrig = normalize(trigger);
@@ -161,7 +161,7 @@ client.on("messageCreate", async (message) => {
     if (now - last < config.userCooldownMs) return;
     lastReplyAt.set(message.author.id, now);
 
-    // Strip a leading mention like "@Ei " from the content before matching
+    // Strip a leading mention like "@Nahida " from the content before matching
     const cleaned = content.replace(/<@!?\d+>/g, "").trim();
 
     // 1. Check custom Q&A pairs first

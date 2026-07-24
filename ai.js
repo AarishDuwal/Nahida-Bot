@@ -1,4 +1,10 @@
-
+// ai.js
+// Handles calls to Groq's free LLM API for open-ended replies,
+// with a short rolling memory per channel so conversations feel natural.
+//
+// Groq offers a generous free tier (no credit card required) and is
+// OpenAI-compatible, so we just use plain fetch() against their endpoint.
+// Get a free key at https://console.groq.com
 
 const config = require("./config");
 

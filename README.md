@@ -1,10 +1,10 @@
-# Ei — Personal Discord Bot
+# Nahida — Personal Discord Bot
 
 A bot that replies to natural messages — no slash commands, no prefix. Just talk to it, mention it, or DM it.
 
 ## File structure
 ```
-ei-bot/
+nahida-bot/
 ├── index.js        # main bot logic (message listening, matching, replies)
 ├── config.js        # bot name, owner name, tuning values
 ├── responses.js      # your custom Q&A pairs
@@ -17,7 +17,7 @@ ei-bot/
 ## Setup
 
 1. **Create the bot on Discord's Developer Portal**
-   - Go to https://discord.com/developers/applications → New Application → name it "Ei"
+   - Go to https://discord.com/developers/applications → New Application → name it "Nahida"
    - Go to the "Bot" tab → Reset Token → copy it
    - Under "Privileged Gateway Intents", turn ON **Message Content Intent** (required, since the bot reads full message text without a prefix)
 
@@ -29,7 +29,7 @@ ei-bot/
 
 3. **Install dependencies**
    ```bash
-   cd ei-bot
+   cd nahida-bot
    npm install
    ```
 
@@ -37,7 +37,7 @@ ei-bot/
    Open `.env` and paste your real credentials:
    ```
    DISCORD_TOKEN=your_real_discord_token_here
-   OWNER_NAME=Aarish
+   OWNER_NAME=Arvel
    GROQ_API_KEY=your_real_groq_api_key_here
    ```
    Get a free Groq API key at [console.groq.com](https://console.groq.com) → sign up (no credit card required) → **API Keys** → **Create API Key**.
@@ -46,25 +46,25 @@ ei-bot/
    ```bash
    npm start
    ```
-   You should see `Ei is online as Ei#1234` in the console.
+   You should see `Nahida is online as Nahida#1234` in the console.
 
 ## How it responds
 
 - **In DMs**: replies to everything.
-- **In server channels**: replies when you `@mention` it, or when your message contains the word "ei" (so you don't need a prefix — just say its name naturally, e.g. "ei what time is it").
+- **In server channels**: replies when you `@mention` it, or when your message contains the word "nahi" (so you don't need a prefix — just say its name naturally, e.g. "nahi what time is it").
 - **Typo tolerance**: uses fuzzy string matching (Levenshtein distance) so small spelling mistakes in questions still match — e.g. "does riplek love luza" still triggers the right answer.
 - **Reply priority**: custom Q&A (`responses.js`) → built-in smalltalk (time/date/etc.) → real AI-generated reply via Claude, in that order. The first one that matches wins.
 
 ## About the AI fallback (ai.js)
 
-When nothing in `responses.js` or the built-in smalltalk matches, Ei calls the Groq API to generate a real, open-ended reply.
+When nothing in `responses.js` or the built-in smalltalk matches, Nahida calls the Groq API to generate a real, open-ended reply.
 
 - **Free.** Groq has a genuine free tier — no credit card required, no trial expiration like some other providers.
 - **Not permanent learning.** It doesn't train on your messages or get smarter over time. Each reply is generated fresh by the model based on the conversation so far.
-- **Short-term memory only.** Ei keeps the last ~12 messages per channel in memory so replies feel like part of an ongoing conversation. This resets whenever the bot restarts or redeploys (e.g. after a `git push` to Railway) — nothing is saved permanently.
+- **Short-term memory only.** Nahida keeps the last ~12 messages per channel in memory so replies feel like part of an ongoing conversation. This resets whenever the bot restarts or redeploys (e.g. after a `git push` to Railway) — nothing is saved permanently.
 - **Model used:** `llama-3.3-70b-versatile` by default — good quality, plays well with Groq's free-tier limits. You can swap this for `llama-3.1-8b-instant` in `ai.js` if you want faster/cheaper-on-limits responses, or another supported Groq model.
 - **Rate limits:** free tier has request/token limits per minute — check current limits at [console.groq.com](https://console.groq.com) if the bot starts erroring under heavy use.
-- **Personality:** controlled by the `SYSTEM_PROMPT` in `ai.js` — edit that to change Ei's tone, add more personality quirks, or add ground rules.
+- **Personality:** controlled by the `SYSTEM_PROMPT` in `ai.js` — edit that to change Nahida's tone, add more personality quirks, or add ground rules.
 
 ## Editing custom answers
 

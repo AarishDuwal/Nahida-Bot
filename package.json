@@ -1,7 +1,7 @@
 {
-  "name": "ei-bot",
+  "name": "nahida-bot",
   "version": "1.0.0",
-  "description": "Ei - a personal Discord bot that replies to natural messages, no slash commands or prefix needed",
+  "description": "Nahida - a personal Discord bot that replies to natural messages, no slash commands or prefix needed",
   "main": "index.js",
   "type": "commonjs",
   "engines": {
