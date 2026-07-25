@@ -84,6 +84,16 @@ module.exports = [
     "who is the authentic server owner?",
     ],
     answer: "The real server owner is the lazy Artorias.",
-  }
+  },
+  {
+    id: "why-dae-is-gay?",
+    triggers: [
+      "why is dae gay?",
+      "why is dae so gay?",
+      "why is dae the gayest of the gays?",
+      "why is dae the super gay?",
+    ],
+    answer: "Dae is gay because that's just who She is!"
+  },
 
 ];
