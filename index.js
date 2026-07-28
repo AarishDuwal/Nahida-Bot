@@ -7,6 +7,22 @@ const { Client, GatewayIntentBits, Partials, ActivityType } = require("discord.j
 const config = require("./config");
 const qaPairs = require("./responses");
 const { generateReply } = require("./ai");
+const { searchGif } = require("./gifs");
+
+// Search terms to pull a joke/funny reaction GIF from Tenor when Nahida
+// decides to reply with a GIF instead of text
+const JOKE_GIF_QUERIES = [
+  "funny joke reaction",
+  "dad joke",
+  "laughing meme",
+  "corny joke rimshot",
+  "anime laughing",
+];
+
+// Loose match for "tell me a joke" style requests, so we can randomly
+// choose text vs GIF for these specifically
+const JOKE_REQUEST_REGEX =
+  /\b(tell me a joke|got any jokes?|say something funny|make me laugh|know any jokes?)\b/i;
 
 const client = new Client({
   intents: [
@@ -182,11 +198,27 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // 3. Fallback: ask the AI for a real, context-aware reply
+    // 3. Special case: joke requests can be answered with a GIF instead of
+    // (or alongside) text, picked randomly so it doesn't feel repetitive
+    if (JOKE_REQUEST_REGEX.test(cleaned)) {
+      const wantsGif = Math.random() < 0.5; // 50/50 text vs gif
+      if (wantsGif) {
+        const query =
+          JOKE_GIF_QUERIES[Math.floor(Math.random() * JOKE_GIF_QUERIES.length)];
+        const gifUrl = await searchGif(query);
+        if (gifUrl) {
+          await message.reply(gifUrl); // Discord auto-embeds the GIF link
+          return;
+        }
+        // no TENOR_API_KEY set, or Tenor had nothing — fall through to text
+      }
+    }
+
+    // 4. Fallback: ask the AI for a real, context-aware reply
     if (isDM || isMentioned || saysWakeWord) {
       try {
         await message.channel.sendTyping();
-        const aiReply = await generateReply(message.channel.id, cleaned);
+        const aiReply = await generateReply(message.channel.id, cleaned, message.author.id);
         await message.reply(aiReply);
       } catch (aiErr) {
         console.error("AI reply failed:", aiErr);
