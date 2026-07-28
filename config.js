@@ -3,6 +3,10 @@ module.exports = {
   wakeWord: "nahi", // the word people say in chat to get the bot's attention
   statusText: "God of Wisdom",
   ownerName: process.env.OWNER_NAME || "Arvel",
+  // The REAL owner's Discord user ID. Used to verify creator claims —
+  // only messages actually sent by this Discord account are trusted as
+  // coming from the owner; anyone else typing "I'm your creator" is not.
+  ownerDiscordId: process.env.OWNER_DISCORD_ID || "1213783288443830284",
   // If true, always try Toram Online lookups (Coryn Club + wiki) on every
   // AI fallback message, since this bot lives in a Toram-focused server —
   // no need to require the word "toram" to be typed every time.
