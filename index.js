@@ -19,10 +19,11 @@ const JOKE_GIF_QUERIES = [
   "anime laughing",
 ];
 
-// Loose match for "tell me a joke" style requests, so we can randomly
-// choose text vs GIF for these specifically
+// Loose match for joke requests — covers fixed phrases ("tell me a joke")
+// AND topic-specific asks with an explicit format ("mom joke in gif",
+// "dad joke as text") that don't use any of those fixed phrasings.
 const JOKE_REQUEST_REGEX =
-  /\b(tell me a joke|got any jokes?|say something funny|make me laugh|know any jokes?)\b/i;
+  /\b(tell me (?:a |an )?(?:\w+\s)?jokes?|got any (?:\w+\s)?jokes?|give me (?:a |an )?(?:\w+\s)?jokes?|say something funny|make me laugh|know any (?:\w+\s)?jokes?|(?:\w+\s)?jokes?\s+(?:in|as|via)\s*(?:a\s*)?(?:gif|text|words))\b/i;
 
 // Direct "send me a gif" style requests — guaranteed GIF reply, not random.
 // Captures an optional topic, e.g. "send a cat gif" -> topic "cat",
@@ -246,19 +247,47 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // 4. Special case: joke requests can be answered with a GIF instead of
-    // (or alongside) text, picked randomly so it doesn't feel repetitive
+    // 4. Special case: joke requests. If the person explicitly asked for a
+    // format ("in gif", "as text", etc.) honor that; otherwise 50/50.
     if (JOKE_REQUEST_REGEX.test(cleaned)) {
-      const wantsGif = Math.random() < 0.5; // 50/50 text vs gif
+      const explicitlyWantsGif = /\b(in|as|via|with)\s*(a\s*)?gif\b/i.test(cleaned);
+      const explicitlyWantsText =
+        /\b(in|as)\s*(a\s*)?(text|words|writing)\b/i.test(cleaned);
+
+      const wantsGif = explicitlyWantsText
+        ? false
+        : explicitlyWantsGif
+        ? true
+        : Math.random() < 0.5; // no preference stated — 50/50
+
       if (wantsGif) {
-        const query =
-          JOKE_GIF_QUERIES[Math.floor(Math.random() * JOKE_GIF_QUERIES.length)];
+        // Try to pull out a specific topic, e.g. "mom joke" from
+        // "mom joke in gif", "dark humor joke gif", etc. Filler words
+        // (a/any/some/me/one) are ignored so we don't search for those.
+        const topicMatch = cleaned.match(
+          /\b(?!a\b|an\b|any\b|some\b|me\b|one\b)([a-z]+(?:\s[a-z]+)?)\s+jokes?\b/i
+        );
+        const topic = topicMatch?.[1]?.trim();
+
+        const query = topic
+          ? `${topic} joke gif` // e.g. "mom joke gif", searches Klipy for that specific topic
+          : JOKE_GIF_QUERIES[Math.floor(Math.random() * JOKE_GIF_QUERIES.length)];
+
         const gifUrl = await searchGif(query);
         if (gifUrl) {
           await message.reply(gifUrl); // Discord auto-embeds the GIF link
           return;
         }
-        // no KLIPY_API_KEY set, or Klipy had nothing — fall through to text
+        // No gif found (or KLIPY_API_KEY not set). If they explicitly asked
+        // for a gif, say so honestly instead of silently giving text anyway.
+        if (explicitlyWantsGif) {
+          await message.reply(
+            topic
+              ? `Couldn't find a "${topic}" gif right now 😅 — here's a joke in text instead:`
+              : "Couldn't find a joke gif right now 😅 (or my gif key isn't set up) — here's one in text instead:"
+          );
+          // fall through to AI text reply below
+        }
       }
     }
 
