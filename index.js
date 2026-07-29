@@ -24,6 +24,12 @@ const JOKE_GIF_QUERIES = [
 const JOKE_REQUEST_REGEX =
   /\b(tell me a joke|got any jokes?|say something funny|make me laugh|know any jokes?)\b/i;
 
+// Direct "send me a gif" style requests — guaranteed GIF reply, not random.
+// Captures an optional topic, e.g. "send a cat gif" -> topic "cat",
+// "give me a gif of dancing" -> topic "dancing".
+const GIF_REQUEST_REGEX =
+  /\b(?:send|give|show)(?: me)? (?:a |an )?gif(?: of)?\s*([a-z0-9 ]*)|gif please\b/i;
+
 // General "vibe" GIFs Nahida can toss in during normal conversation,
 // not just when someone explicitly asks for a joke — keeps replies feeling
 // more alive. Kept intentionally generic/wholesome reactions.
@@ -183,8 +189,14 @@ client.on("messageCreate", async (message) => {
     // this avoids the bot replying to every single message in a busy server.
     const isDM = message.channel.type === 1; // DM channel
     const isMentioned = message.mentions.has(client.user);
+
+    // Only count the wake word if it shows up near the START of the
+    // message — this is meant to catch "nahi what's up", not a random
+    // occurrence of the word buried in a long, unrelated announcement
+    // or a game term that happens to contain it.
+    const firstFewWords = content.split(/\s+/).slice(0, 5).join(" ");
     const wakeWordRegex = new RegExp(`\\b${config.wakeWord}\\b`, "i");
-    const saysWakeWord = wakeWordRegex.test(content);
+    const saysWakeWord = wakeWordRegex.test(firstFewWords);
 
     if (!isDM && !isMentioned && !saysWakeWord) return;
 
@@ -215,7 +227,26 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // 3. Special case: joke requests can be answered with a GIF instead of
+    // 3. Direct GIF requests ("send a gif", "give me a gif of cats") —
+    // guaranteed GIF, not a coin flip, since the person explicitly asked
+    const gifRequestMatch = cleaned.match(GIF_REQUEST_REGEX);
+    if (gifRequestMatch) {
+      const topic = gifRequestMatch[1]?.trim();
+      const query = topic
+        ? topic
+        : VIBE_GIF_QUERIES[Math.floor(Math.random() * VIBE_GIF_QUERIES.length)];
+      const gifUrl = await searchGif(query);
+      if (gifUrl) {
+        await message.reply(gifUrl); // Discord auto-embeds the GIF link
+        return;
+      }
+      await message.reply(
+        "Couldn't find a gif for that right now 😅 (or my gif key isn't set up yet)."
+      );
+      return;
+    }
+
+    // 4. Special case: joke requests can be answered with a GIF instead of
     // (or alongside) text, picked randomly so it doesn't feel repetitive
     if (JOKE_REQUEST_REGEX.test(cleaned)) {
       const wantsGif = Math.random() < 0.5; // 50/50 text vs gif
@@ -227,11 +258,11 @@ client.on("messageCreate", async (message) => {
           await message.reply(gifUrl); // Discord auto-embeds the GIF link
           return;
         }
-        // no TENOR_API_KEY set, or Tenor had nothing — fall through to text
+        // no KLIPY_API_KEY set, or Klipy had nothing — fall through to text
       }
     }
 
-    // 4. Fallback: ask the AI for a real, context-aware reply
+    // 5. Fallback: ask the AI for a real, context-aware reply
     if (isDM || isMentioned || saysWakeWord) {
       try {
         await message.channel.sendTyping();
