@@ -9,7 +9,7 @@ const qaPairs = require("./responses");
 const { generateReply } = require("./ai");
 const { searchGif } = require("./gifs");
 
-// Search terms to pull a joke/funny reaction GIF from Tenor when Nahida
+// Search terms to pull a joke/funny reaction GIF from Klipy when Nahida
 // decides to reply with a GIF instead of text
 const JOKE_GIF_QUERIES = [
   "funny joke reaction",
@@ -23,6 +23,23 @@ const JOKE_GIF_QUERIES = [
 // choose text vs GIF for these specifically
 const JOKE_REQUEST_REGEX =
   /\b(tell me a joke|got any jokes?|say something funny|make me laugh|know any jokes?)\b/i;
+
+// General "vibe" GIFs Nahida can toss in during normal conversation,
+// not just when someone explicitly asks for a joke — keeps replies feeling
+// more alive. Kept intentionally generic/wholesome reactions.
+const VIBE_GIF_QUERIES = [
+  "anime happy reaction",
+  "anime nodding agree",
+  "sassy side eye reaction",
+  "excited celebration reaction",
+  "anime thumbs up",
+  "confused anime reaction",
+  "smug anime reaction",
+];
+
+// Chance that a NORMAL ai reply (not an explicit joke request) also gets
+// a follow-up GIF. Keep this low so it stays a fun surprise, not spam.
+const VIBE_GIF_CHANCE = 0.12; // 12%
 
 const client = new Client({
   intents: [
@@ -220,6 +237,18 @@ client.on("messageCreate", async (message) => {
         await message.channel.sendTyping();
         const aiReply = await generateReply(message.channel.id, cleaned, message.author.id);
         await message.reply(aiReply);
+
+        // Small random chance to follow up with a vibe GIF, just to keep
+        // normal conversation feeling lively (separate from the explicit
+        // joke-request GIF logic above)
+        if (Math.random() < VIBE_GIF_CHANCE) {
+          const query =
+            VIBE_GIF_QUERIES[Math.floor(Math.random() * VIBE_GIF_QUERIES.length)];
+          const gifUrl = await searchGif(query);
+          if (gifUrl) {
+            await message.channel.send(gifUrl);
+          }
+        }
       } catch (aiErr) {
         console.error("AI reply failed:", aiErr);
         await message.reply(

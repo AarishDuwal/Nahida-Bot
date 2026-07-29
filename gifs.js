@@ -1,50 +1,60 @@
 // gifs.js
-// Fetches a relevant GIF from Tenor's free API. Used so Nahida can reply
-// with a fitting reaction GIF instead of (or alongside) plain text.
+// Fetches a relevant GIF from Klipy's free API.
 //
-// Get a free Tenor API key at https://tenor.com/gifapi (Google account,
-// generous free quota, no credit card).
+// NOTE: We use Klipy, not Tenor. Google is shutting Tenor's public GIF API
+// down in 2026 (new keys already stopped being issued), so Tenor isn't a
+// viable option to build on right now. Klipy was built by ex-Tenor staff
+// specifically as a like-for-like replacement — Discord and WhatsApp are
+// migrating to it too. A Test API key (free, no card, ~100 calls/hour) is
+// plenty for a bot this size; a free Production key (unlimited calls) can
+// be requested later from the Partner Panel once things are working.
+//
+// Get a key at: https://partner.klipy.com/api-keys
+// Docs: https://docs.klipy.com/gifs-api/gifs-search-api
 
-const TENOR_API_KEY = process.env.TENOR_API_KEY;
-const TENOR_SEARCH_URL = "https://tenor.googleapis.com/v2/search";
+const KLIPY_API_KEY = process.env.KLIPY_API_KEY;
+// Klipy asks for a "customer_id" per end user, mainly for their own
+// analytics/content-filtering — a stable per-bot ID is fine here.
+const KLIPY_CUSTOMER_ID = "nahida-bot";
 
 /**
- * Search Tenor for a GIF matching the query and return a random pick
- * from the top results (so replies don't feel repetitive).
- * @param {string} query - e.g. "funny joke", "dad joke reaction"
+ * Search Klipy for a GIF matching the query and return a random pick
+ * from the top results, so replies don't feel repetitive.
+ * @param {string} query - e.g. "funny joke reaction"
  * @returns {Promise<string|null>} - direct GIF URL, or null if unavailable
  */
 async function searchGif(query) {
-  if (!TENOR_API_KEY) return null;
+  if (!KLIPY_API_KEY) return null;
 
   try {
     const params = new URLSearchParams({
       q: query,
-      key: TENOR_API_KEY,
-      client_key: "nahida-bot",
-      limit: "12",
-      media_filter: "gif",
-      contentfilter: "medium", // filters out NSFW/edgy results
+      customer_id: KLIPY_CUSTOMER_ID,
+      per_page: "15",
     });
 
-    const response = await fetch(`${TENOR_SEARCH_URL}?${params}`);
+    const url = `https://api.klipy.com/api/v1/${KLIPY_API_KEY}/gifs/search?${params}`;
+    const response = await fetch(url);
+
     if (!response.ok) {
-      console.error(`[gifs.js] Tenor API error ${response.status}`);
+      console.error(`[gifs.js] Klipy API error ${response.status}`);
       return null;
     }
 
     const data = await response.json();
-    const results = data.results || [];
-    if (results.length === 0) return null;
+    // Klipy nests results under data.data (array of items with .file objects)
+    const results = data?.data?.data || data?.data || [];
+    if (!Array.isArray(results) || results.length === 0) return null;
 
     const pick = results[Math.floor(Math.random() * results.length)];
     return (
-      pick.media_formats?.gif?.url ||
-      pick.media_formats?.tinygif?.url ||
+      pick?.file?.md?.gif?.url ||
+      pick?.file?.sm?.gif?.url ||
+      pick?.file?.hd?.gif?.url ||
       null
     );
   } catch (err) {
-    console.error("[gifs.js] Tenor search failed:", err.message);
+    console.error("[gifs.js] Klipy search failed:", err.message);
     return null;
   }
 }
