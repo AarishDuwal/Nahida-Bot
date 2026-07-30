@@ -207,8 +207,18 @@ client.on("messageCreate", async (message) => {
     if (now - last < config.userCooldownMs) return;
     lastReplyAt.set(message.author.id, now);
 
-    // Strip a leading mention like "@Nahida " from the content before matching
-    const cleaned = content.replace(/<@!?\d+>/g, "").trim();
+    // Strip the bot's own mention (e.g. "@Nahida ") since that's just how
+    // it got summoned, not meaningful content. But if OTHER users are
+    // mentioned (e.g. "why are you ignoring @Gae-er"), replace that with
+    // their actual username instead of deleting it — otherwise the AI has
+    // no idea who's being talked about and gives an ambiguous reply.
+    const cleaned = content
+      .replace(/<@!?(\d+)>/g, (match, id) => {
+        if (id === client.user.id) return "";
+        const mentionedUser = message.mentions.users.get(id);
+        return mentionedUser ? `@${mentionedUser.username}` : "";
+      })
+      .trim();
 
     // 1. Check custom Q&A pairs first
     const qaMatch = findQAMatch(cleaned);

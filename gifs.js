@@ -42,17 +42,38 @@ async function searchGif(query) {
     }
 
     const data = await response.json();
-    // Klipy nests results under data.data (array of items with .file objects)
+    // Klipy nests results under data.data (array of items)
     const results = data?.data?.data || data?.data || [];
-    if (!Array.isArray(results) || results.length === 0) return null;
+    if (!Array.isArray(results) || results.length === 0) {
+      console.error("[gifs.js] Klipy returned no results for:", query);
+      return null;
+    }
 
     const pick = results[Math.floor(Math.random() * results.length)];
-    return (
+    // NOTE: Klipy's documented field is "files" (plural), not "file" —
+    // trying both in case the shape differs between test/production keys.
+    const candidateUrl =
+      pick?.files?.md?.gif?.url ||
+      pick?.files?.sm?.gif?.url ||
+      pick?.files?.hd?.gif?.url ||
       pick?.file?.md?.gif?.url ||
       pick?.file?.sm?.gif?.url ||
       pick?.file?.hd?.gif?.url ||
-      null
+      null;
+
+    // Sanity check: only return it if it actually looks like a real media
+    // URL (gif/webp/mp4), not something malformed
+    if (candidateUrl && /\.(gif|webp|mp4)(\?|$)/i.test(candidateUrl)) {
+      return candidateUrl;
+    }
+
+    // Didn't get a usable URL — log the raw item shape so it can be fixed
+    // precisely instead of guessing again. Check Railway logs for this.
+    console.error(
+      "[gifs.js] Unexpected Klipy item shape, raw pick:",
+      JSON.stringify(pick).slice(0, 500)
     );
+    return null;
   } catch (err) {
     console.error("[gifs.js] Klipy search failed:", err.message);
     return null;
