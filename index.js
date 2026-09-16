@@ -95,44 +95,94 @@ function similarity(a, b) {
   return 1 - levenshtein(a, b) / maxLen;
 }
 
-// Checks whether the message contains something close enough to any trigger phrase.
-// Uses whole-string similarity AND substring containment so short trigger phrases
-// still match inside longer sentences (e.g. "yo nahi does riplik love luza fr").
+// Words too generic to identify a topic on their own. A trigger match that
+// only lines up on these is meaningless — "tell me about the" vs
+// "tell me about dae" are 88% identical as raw characters, which is how
+// a Toram question once got answered with an unrelated guild in-joke.
+const STOPWORDS = new Set([
+  "a","an","the","is","are","was","were","do","does","did","can","could",
+  "will","would","should","u","you","me","my","i","it","its","this","that",
+  "what","whats","who","whos","why","how","when","where","tell","say","about",
+  "of","in","on","for","to","and","or","so","pls","please","hey","yo","hi",
+]);
+
+// Returns the meaningful (non-stopword) words of a phrase.
+function contentWords(str) {
+  return normalize(str)
+    .split(" ")
+    .filter((w) => w && !STOPWORDS.has(w));
+}
+
+// Checks whether the message contains something close enough to any trigger
+// phrase. Matching is WORD-based, not character-based: the distinctive words
+// of the trigger (names, nouns — not filler like "tell me about") must
+// actually be present in the message. This stops unrelated questions from
+// matching just because they share generic sentence scaffolding.
 function matchesTrigger(message, trigger) {
   const normMsg = normalize(message);
   const normTrig = normalize(trigger);
 
+  // Exact containment is always a match
   if (normMsg.includes(normTrig)) return true;
 
-  // Sliding window comparison for typo tolerance on multi-word phrases
-  const msgWords = normMsg.split(" ");
-  const trigWords = normTrig.split(" ");
-  const windowSize = trigWords.length;
+  const trigKeywords = contentWords(trigger);
+  const msgWords = new Set(normalize(message).split(" "));
 
-  for (let i = 0; i <= msgWords.length - windowSize; i++) {
-    const window = msgWords.slice(i, i + windowSize).join(" ");
-    if (similarity(window, normTrig) >= config.matchThreshold + 0.25) {
-      return true;
+  // A trigger made entirely of stopwords can't be matched safely
+  if (trigKeywords.length === 0) return false;
+
+  // Every distinctive word in the trigger must appear in the message,
+  // allowing small typos (e.g. "riplik" vs "riplek").
+  const allKeywordsPresent = trigKeywords.every((kw) => {
+    if (msgWords.has(kw)) return true;
+    // typo tolerance, but only for words long enough that a close match
+    // is meaningful (short words like "dae"/"the" are too easy to confuse)
+    if (kw.length < 5) return false;
+    for (const w of msgWords) {
+      if (w.length >= 5 && similarity(w, kw) >= 0.8) return true;
     }
-  }
+    return false;
+  });
 
-  // Fallback: overall similarity for short messages
-  if (similarity(normMsg, normTrig) >= config.matchThreshold + 0.25) {
-    return true;
-  }
+  return allKeywordsPresent;
+}
 
-  return false;
+// Returns how specifically a trigger matches — higher is a better match.
+// Used to break ties so a precise entry ("is dae really gay") wins over a
+// broad one ("who is dae") instead of whichever happens to be listed first.
+function triggerScore(message, trigger) {
+  if (!matchesTrigger(message, trigger)) return -1;
+  const normMsg = normalize(message);
+  const normTrig = normalize(trigger);
+  let score = contentWords(trigger).length * 10; // more keywords = more specific
+  if (normMsg.includes(normTrig)) score += 50; // exact phrase containment
+
+  // Question words are stopwords (so they don't drive matching), but they do
+  // signal intent: "why is X gay" and "is X gay" want different answers.
+  // Reward a trigger that opens with the same question word as the message.
+  const QUESTION_WORDS = ["why", "how", "who", "what", "whats", "when", "where", "is", "are", "does", "do"];
+  const msgFirstQ = normMsg.split(" ").find((w) => QUESTION_WORDS.includes(w));
+  const trigFirstQ = normTrig.split(" ").find((w) => QUESTION_WORDS.includes(w));
+  if (msgFirstQ && trigFirstQ && msgFirstQ === trigFirstQ) score += 15;
+
+  return score;
 }
 
 function findQAMatch(content) {
+  let best = null;
+  let bestScore = -1;
+
   for (const qa of qaPairs) {
     for (const trigger of qa.triggers) {
-      if (matchesTrigger(content, trigger)) {
-        return qa;
+      const score = triggerScore(content, trigger);
+      if (score > bestScore) {
+        bestScore = score;
+        best = qa;
       }
     }
   }
-  return null;
+
+  return bestScore >= 0 ? best : null;
 }
 
 // --- General built-in smalltalk / utility answers ---------------------------
