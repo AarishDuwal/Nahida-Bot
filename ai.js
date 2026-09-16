@@ -23,24 +23,39 @@ const { searchCorynClub } = require("./corynClub");
 // is actually set. Model IDs occasionally change on the provider side —
 // if one starts erroring, check the provider's current model list and
 // update the value here (or override via the matching *_MODEL env var).
+//
+// Updated Sept 2026: all four defaults below were changed after the
+// previous ones started 404ing (model_not_found) — providers moved/retired
+// them. If this happens again, check Railway logs for the exact error
+// (each provider tells you what's wrong) and update the relevant line.
 const PROVIDERS = [
   {
     name: "Groq",
     apiKey: process.env.GROQ_API_KEY,
     url: "https://api.groq.com/openai/v1/chat/completions",
-    model: process.env.GROQ_MODEL || "llama-3.1-8b-instant", // higher free-tier limits than 70b
+    // llama-3.1-8b-instant / llama-3.3-70b-versatile moved to
+    // Enterprise-only pricing (Aug 26, 2026). Current free self-serve
+    // models are the two GPT-OSS sizes.
+    model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
   },
   {
     name: "Cerebras",
     apiKey: process.env.CEREBRAS_API_KEY,
     url: "https://api.cerebras.ai/v1/chat/completions",
-    model: process.env.CEREBRAS_MODEL || "llama3.1-8b",
+    // llama3.1-8b was deprecated back in May 2026. gpt-oss-120b is
+    // Cerebras' own recommended migration target and current flagship.
+    model: process.env.CEREBRAS_MODEL || "gpt-oss-120b",
   },
   {
     name: "OpenRouter",
     apiKey: process.env.OPENROUTER_API_KEY,
     url: "https://openrouter.ai/api/v1/chat/completions",
-    model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
+    // Using OpenRouter's own auto-router instead of a specific model slug.
+    // "openrouter/free" always resolves to whatever's currently free on
+    // their platform, so we stop breaking every time a specific :free
+    // model gets retired or turned paid (which is exactly what happened
+    // to the old meta-llama/llama-3.3-70b-instruct:free entry).
+    model: process.env.OPENROUTER_MODEL || "openrouter/free",
     extraHeaders: {
       // OpenRouter asks for these but they're optional/cosmetic
       "HTTP-Referer": "https://github.com/",
@@ -51,7 +66,8 @@ const PROVIDERS = [
     name: "Gemini",
     apiKey: process.env.GEMINI_API_KEY,
     url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    // gemini-2.5-flash is no longer available to new callers.
+    model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
   },
 ].filter((p) => !!p.apiKey); // drop any provider whose key isn't set
 
